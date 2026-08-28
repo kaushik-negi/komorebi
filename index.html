@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>komorebi — timer & habits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Quicksand:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --peach:#f2b8a0; --mauve:#c98ba6; --dusk:#7d74a8; --night:#2e2a47;
+    --gold:#f2c879; --gold-deep:#d9a54f;
+    --cream:#fdf6e8; --forest:#4d6b52; --forest-deep:#324a37; --ink:#241f3d;
+    --sky-a:var(--peach); --sky-b:var(--mauve); --sky-c:var(--dusk); --sky-d:var(--night);
+    --card-alpha:0.14;
+    --accent2:#f2c879;
+    --grid-line: rgba(253,246,232,.14);
+    --danger:#e0796b;
+  }
+
+  body[data-theme="space"]{
+    --sky-a:#241246; --sky-b:#170a30; --sky-c:#0f0824; --sky-d:#050310;
+    --gold:#ffd15c; --gold-deep:#ff9d5c;
+    --cream:#eef1ff; --ink:#0b0716;
+    --accent2:#5ce1e6;
+    --grid-line: rgba(92,225,230,.18);
+    --danger:#ff5f8f;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;font-family:'Quicksand',sans-serif;}
+  body{
+    position:relative;
+    background:linear-gradient(180deg,var(--sky-a) 0%,var(--sky-b) 38%,var(--sky-c) 68%,var(--sky-d) 100%);
+    transition:background 1.4s ease;
+    color:var(--cream);
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+
+  /* ================= decorative sky ================= */
+  .sky-layer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+  .stars{position:absolute;inset:0;opacity:0;transition:opacity 1.4s ease;}
+  .stars span{position:absolute;width:2px;height:2px;background:var(--cream);border-radius:50%;animation:twinkle 3.5s ease-in-out infinite;}
+  @keyframes twinkle{0%,100%{opacity:.15;}50%{opacity:.9;}}
+
+  .cloud{position:absolute;background:var(--cream);opacity:.32;border-radius:100px;filter:blur(1px);}
+  .cloud::before,.cloud::after{content:'';position:absolute;background:inherit;border-radius:100px;}
+  .cloud1{width:180px;height:46px;top:10%;left:-220px;animation:drift 46s linear infinite;}
+  .cloud1::before{width:90px;height:70px;top:-32px;left:20px;}
+  .cloud1::after{width:70px;height:50px;top:-20px;left:100px;}
+  .cloud2{width:130px;height:36px;top:18%;left:-200px;animation:drift 62s linear infinite;animation-delay:-20s;opacity:.24;}
+  .cloud2::before{width:70px;height:50px;top:-24px;left:16px;}
+  .cloud2::after{width:50px;height:36px;top:-14px;left:74px;}
+  @keyframes drift{to{transform:translateX(calc(100vw + 300px));}}
+
+  .hills{position:absolute;left:0;right:0;bottom:0;width:100%;}
+  .hill-back{fill:var(--forest-deep);opacity:.5;}
+  .hill-front{fill:var(--forest);opacity:.8;}
+  .windmill{position:absolute;bottom:14%;left:6%;width:60px;height:60px;opacity:.8;}
+  .windmill svg{width:100%;height:100%;}
+  .blades{transform-origin:44px 30px;animation:spin 9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .orb{position:absolute;width:40px;height:40px;border-radius:50%;left:82%;top:14%;
+    background:radial-gradient(circle at 35% 30%, #fff7dd, var(--gold) 60%, var(--gold-deep) 100%);
+    box-shadow:0 0 34px 8px rgba(242,200,121,.5); transition:opacity .4s ease;}
+
+  /* space theme decor */
+  .space-decor{position:absolute;inset:0;opacity:0;transition:opacity 1.4s ease;pointer-events:none;}
+  body[data-theme="space"] .space-decor{opacity:1;}
+  body[data-theme="space"] .cloud,
+  body[data-theme="space"] .hills,
+  body[data-theme="space"] .windmill,
+  body[data-theme="space"] .orb{opacity:0;}
+  .retro-sun{position:absolute;left:50%;bottom:18%;width:220px;height:220px;transform:translateX(-50%);
+    border-radius:50%;overflow:hidden;
+    background:linear-gradient(180deg,#ffd15c 0%,#ff9d5c 45%,#ff5f8f 100%);
+    box-shadow:0 0 60px 10px rgba(255,140,160,.35);}
+  .retro-sun::before{content:'';position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg, transparent 0 8px, var(--sky-d) 8px 14px);
+    mix-blend-mode:normal; -webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 45%, black 48%);
+    mask-image:linear-gradient(to bottom, transparent 0%, transparent 45%, black 48%);}
+  .grid-floor{position:absolute;left:0;right:0;bottom:0;height:34%;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:100% 22px, 46px 100%;
+    transform:perspective(220px) rotateX(58deg);
+    transform-origin:bottom;
+    opacity:.8;}
+  .scanlines{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity 1.4s ease;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.12) 0 2px, transparent 2px 4px);}
+  body[data-theme="space"] .scanlines{opacity:.5;}
+
+  /* ================= top nav ================= */
+  .topbar{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+    max-width:1080px;margin:0 auto;padding:26px 28px 0;flex-wrap:wrap;gap:14px;}
+  .brand{font-family:'Caveat',cursive;font-size:1.9rem;font-weight:600;margin:0;text-shadow:0 2px 10px rgba(0,0,0,.25);}
+  .brand small{display:block;font-family:'Quicksand',sans-serif;font-size:.62rem;font-weight:700;
+    letter-spacing:3px;text-transform:uppercase;opacity:.7;margin-top:-2px;}
+
+  .nav-tabs{display:flex;gap:8px;background:rgba(253,246,232,.08);padding:5px;border-radius:999px;
+    border:1px solid rgba(253,246,232,.15);}
+  .nav-tabs button{font-family:'Quicksand',sans-serif;font-weight:700;font-size:.85rem;padding:9px 18px;
+    border-radius:999px;border:none;background:transparent;color:var(--cream);opacity:.7;cursor:pointer;transition:all .2s ease;}
+  .nav-tabs button.active{background:var(--cream);color:var(--ink);opacity:1;}
+
+  .topbar-actions{display:flex;align-items:center;gap:10px;}
+  .icon-btn{width:42px;height:42px;border-radius:50%;border:1.5px solid rgba(253,246,232,.4);
+    background:rgba(253,246,232,var(--card-alpha));color:var(--cream);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .2s ease, transform .3s ease;flex-shrink:0;}
+  .icon-btn:hover{background:rgba(253,246,232,.26);}
+  .icon-btn svg{width:19px;height:19px;}
+  .icon-btn.spin-on-click:active svg{transform:rotate(-70deg);}
+  .icon-btn svg{transition:transform .35s ease;}
+
+  .view{position:relative;z-index:5;max-width:1080px;margin:0 auto;padding:0 28px;display:none;}
+  .view.active{display:block;}
+
+  /* ================= timer view ================= */
+  .stage{max-width:640px;margin:0 auto;padding:28px 0 20px;text-align:center;}
+  .modes{display:flex;justify-content:center;gap:10px;margin:26px 0 24px;flex-wrap:wrap;}
+  .mode-btn{font-weight:600;font-size:.9rem;padding:10px 20px;border-radius:999px;border:1.5px solid rgba(253,246,232,.5);
+    background:rgba(253,246,232,var(--card-alpha));color:var(--cream);cursor:pointer;transition:.2s ease;backdrop-filter:blur(3px);}
+  .mode-btn.active{background:var(--cream);color:var(--ink);border-color:var(--cream);}
+  .time-row{display:flex;align-items:center;justify-content:center;gap:18px;margin:6px 0 10px;}
+  .nudge{width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(253,246,232,.5);
+    background:rgba(253,246,232,var(--card-alpha));color:var(--cream);font-size:1.2rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.2s ease;}
+  .nudge:disabled{opacity:.3;cursor:default;}
+  .clock{font-weight:700;font-size:clamp(3.4rem,12vw,6rem);letter-spacing:2px;line-height:1;
+    text-shadow:0 4px 22px rgba(0,0,0,.3);font-variant-numeric:tabular-nums;user-select:none;}
+  .clock .colon{opacity:.5;}
+  .session-line{font-size:.82rem;font-weight:700;letter-spacing:1px;opacity:.8;margin:6px 0 4px;text-transform:uppercase;}
+  .dots{display:flex;justify-content:center;gap:8px;margin:10px 0 28px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:rgba(253,246,232,.32);transition:.3s ease;}
+  .dot.filled{background:var(--gold);transform:scale(1.15);}
+  .controls{display:flex;align-items:center;justify-content:center;gap:16px;}
+  .btn-start{font-weight:700;font-size:1.02rem;padding:14px 40px;border-radius:999px;border:none;
+    background:var(--cream);color:var(--ink);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:.15s ease;}
+  .btn-start.running{background:var(--gold);}
+
+  /* ================= habits view ================= */
+  .stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0 20px;}
+  .stat-card{background:rgba(253,246,232,.08);border:1px solid rgba(253,246,232,.15);border-radius:16px;padding:18px 20px;}
+  .stat-card .num{font-family:'Space Mono',monospace;font-size:1.9rem;font-weight:700;color:var(--gold);}
+  .stat-card .label{font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:.7;margin-top:2px;}
+
+  .sub-tabs{display:flex;gap:22px;border-bottom:1px solid rgba(253,246,232,.15);margin-bottom:18px;}
+  .sub-tabs button{background:none;border:none;color:var(--cream);opacity:.6;font-weight:700;font-size:.92rem;
+    padding:0 0 12px;cursor:pointer;border-bottom:2px solid transparent;transition:.2s ease;}
+  .sub-tabs button.active{opacity:1;color:var(--gold);border-color:var(--gold);}
+
+  .month-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+  .month-nav .mn-label{font-weight:700;font-size:1.15rem;min-width:170px;}
+  .mn-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(253,246,232,.4);background:rgba(253,246,232,.08);
+    color:var(--cream);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .today-btn{padding:8px 16px;border-radius:999px;border:1.5px solid var(--gold);background:transparent;color:var(--gold);
+    font-weight:700;font-size:.82rem;cursor:pointer;}
+  .add-habit-btn{margin-left:auto;padding:8px 16px;border-radius:999px;border:none;background:var(--gold);color:var(--ink);
+    font-weight:700;font-size:.82rem;cursor:pointer;}
+
+  .grid-wrap{overflow-x:auto;border:1px solid rgba(253,246,232,.15);border-radius:16px;background:rgba(253,246,232,.05);padding-bottom:4px;}
+  table.habit-grid{border-collapse:collapse;width:100%;font-size:.8rem;}
+  table.habit-grid th, table.habit-grid td{padding:8px 6px;text-align:center;white-space:nowrap;}
+  table.habit-grid thead th{font-weight:700;opacity:.65;font-size:.72rem;border-bottom:1px solid rgba(253,246,232,.12);}
+  table.habit-grid thead th.today-col{color:var(--gold);opacity:1;}
+  table.habit-grid td.habit-name{text-align:left;font-weight:700;padding-left:16px;position:sticky;left:0;
+    background:var(--sky-d);min-width:150px;}
+  table.habit-grid td.habit-name .rm{opacity:0;margin-left:8px;cursor:pointer;color:var(--danger);font-weight:700;transition:.2s ease;}
+  table.habit-grid tr:hover td.habit-name .rm{opacity:.8;}
+  table.habit-grid td.month-pct{font-weight:700;color:var(--gold);background:rgba(242,200,121,.08);border-radius:8px;}
+  .cell-btn{width:24px;height:24px;border-radius:6px;border:1.5px solid rgba(253,246,232,.3);background:transparent;
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;transition:.15s ease;}
+  .cell-btn.done{background:var(--gold);border-color:var(--gold);color:var(--ink);}
+  .cell-btn.missed{background:rgba(224,121,107,.25);border-color:var(--danger);color:var(--danger);}
+  .cell-btn:disabled{opacity:.25;cursor:default;}
+  tfoot td{font-weight:700;opacity:.75;font-size:.72rem;padding-top:10px;border-top:1px solid rgba(253,246,232,.12);}
+
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+  .cal-dow{font-size:.7rem;font-weight:700;opacity:.6;text-align:center;padding-bottom:6px;text-transform:uppercase;}
+  .cal-cell{aspect-ratio:1;border-radius:12px;border:1px solid rgba(253,246,232,.12);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;cursor:pointer;transition:.15s ease;}
+  .cal-cell:hover{border-color:var(--gold);}
+  .cal-cell .d{font-size:.85rem;font-weight:700;}
+  .cal-cell .f{font-size:.62rem;opacity:.7;margin-top:2px;}
+  .cal-cell.empty{visibility:hidden;}
+  .cal-cell.today{border-color:var(--gold);border-width:2px;}
+
+  .heat-year-nav{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+  .heat-wrap{overflow-x:auto;padding-bottom:6px;}
+  .heat-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,12px);gap:3px;}
+  .heat-cell{width:12px;height:12px;border-radius:3px;background:rgba(253,246,232,.08);}
+  .heat-months{display:grid;grid-auto-flow:column;gap:3px;margin-bottom:4px;font-size:.62rem;opacity:.6;}
+
+  .empty-state{padding:50px 10px;text-align:center;opacity:.65;font-size:.9rem;}
+
+  /* ================= settings / modal ================= */
+  .overlay{position:fixed;inset:0;background:rgba(10,8,20,.55);display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:30;}
+  .overlay.open{opacity:1;pointer-events:auto;}
+  .panel{width:min(92vw,380px);background:var(--sky-d);border:1px solid rgba(253,246,232,.15);border-radius:22px;
+    padding:26px 26px 22px;color:var(--cream);text-align:left;box-shadow:0 20px 60px rgba(0,0,0,.4);
+    transform:translateY(14px) scale(.97);transition:transform .25s ease;}
+  .overlay.open .panel{transform:translateY(0) scale(1);}
+  .panel h2{font-family:'Caveat',cursive;font-size:1.7rem;margin:0 0 18px;font-weight:600;}
+  .field{margin-bottom:16px;}
+  .field label{display:flex;justify-content:space-between;font-size:.85rem;font-weight:600;opacity:.85;margin-bottom:6px;}
+  .field input[type=number], .field input[type=text]{width:100%;padding:9px 12px;border-radius:10px;
+    border:1px solid rgba(253,246,232,.25);background:rgba(253,246,232,.08);color:var(--cream);font-size:1rem;font-weight:600;}
+  .check-row{display:flex;align-items:center;font-size:.88rem;font-weight:600;opacity:.85;margin-bottom:16px;}
+  .check-row input{transform:scale(1.15);margin-right:8px;accent-color:var(--gold);}
+  .panel-actions{display:flex;gap:10px;margin-top:6px;}
+  .panel-actions button{flex:1;padding:11px;border-radius:12px;border:none;font-weight:700;cursor:pointer;font-size:.92rem;}
+  .panel-actions .save{background:var(--gold);color:var(--ink);}
+  .panel-actions .cancel{background:rgba(253,246,232,.1);color:var(--cream);}
+
+  /* ================= music bar ================= */
+  .music-bar{position:fixed;bottom:16px;left:16px;z-index:15;background:rgba(20,16,36,.55);backdrop-filter:blur(8px);
+    border:1px solid rgba(253,246,232,.18);border-radius:16px;padding:10px;max-width:300px;transition:.25s ease;}
+  .music-bar.collapsed{padding:0;border:none;background:transparent;}
+  .music-toggle{display:flex;align-items:center;gap:8px;background:rgba(20,16,36,.55);border:1px solid rgba(253,246,232,.18);
+    border-radius:999px;padding:8px 16px;cursor:pointer;color:var(--cream);font-size:.78rem;font-weight:700;backdrop-filter:blur(8px);}
+  .music-form{display:flex;gap:6px;margin-bottom:8px;}
+  .music-form input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid rgba(253,246,232,.25);
+    background:rgba(253,246,232,.08);color:var(--cream);font-size:.78rem;}
+  .music-form button{padding:8px 12px;border-radius:8px;border:none;background:var(--gold);color:var(--ink);font-weight:700;cursor:pointer;font-size:.78rem;}
+  .music-embed iframe{border-radius:10px;border:none;display:block;}
+  .music-close{position:absolute;top:6px;right:8px;background:none;border:none;color:var(--cream);opacity:.6;cursor:pointer;font-size:.9rem;}
+
+  .credit{position:relative;z-index:5;text-align:center;font-size:.7rem;opacity:.45;letter-spacing:1px;margin-top:36px;}
+
+  @media (max-width:720px){
+    .stat-cards{grid-template-columns:repeat(2,1fr);}
+    table.habit-grid td.habit-name{min-width:110px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .cloud,.blades,.dot,.icon-btn svg{animation:none !important;transition:none !important;}
+  }
+</style>
+</head>
+<body data-theme="ghibli">
+
+  <div class="sky-layer">
+    <div class="stars" id="stars"></div>
+    <div class="cloud cloud1"></div>
+    <div class="cloud cloud2"></div>
+    <div class="orb" id="orb"></div>
+    <div class="windmill">
+      <svg viewBox="0 0 88 88">
+        <rect x="41" y="30" width="6" height="46" rx="2" fill="var(--cream)" opacity="0.9"/>
+        <g class="blades">
+          <ellipse cx="44" cy="12" rx="6" ry="18" fill="var(--cream)" opacity="0.85"/>
+          <ellipse cx="44" cy="12" rx="6" ry="18" fill="var(--cream)" opacity="0.85" transform="rotate(90 44 30)"/>
+          <ellipse cx="44" cy="12" rx="6" ry="18" fill="var(--cream)" opacity="0.85" transform="rotate(180 44 30)"/>
+          <ellipse cx="44" cy="12" rx="6" ry="18" fill="var(--cream)" opacity="0.85" transform="rotate(270 44 30)"/>
+          <circle cx="44" cy="30" r="4" fill="var(--gold-deep)"/>
+        </g>
+      </svg>
+    </div>
+    <svg class="hills" viewBox="0 0 1440 260" preserveAspectRatio="none">
+      <path class="hill-back" d="M0,140 C220,80 380,180 620,120 C860,60 1000,160 1200,110 C1320,80 1400,110 1440,100 L1440,260 L0,260 Z"/>
+      <path class="hill-front" d="M0,190 C180,150 320,210 520,170 C740,125 880,205 1080,165 C1260,130 1360,175 1440,160 L1440,260 L0,260 Z"/>
+    </svg>
+    <div class="space-decor">
+      <div class="retro-sun"></div>
+      <div class="grid-floor"></div>
+    </div>
+  </div>
+  <div class="scanlines"></div>
+
+  <div class="topbar">
+    <h1 class="brand">komorebi<small>timer &amp; habits</small></h1>
+    <nav class="nav-tabs">
+      <button data-view="timerView" class="active">timer</button>
+      <button data-view="habitsView">habits</button>
+    </nav>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Timer settings" title="Timer settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= TIMER VIEW ================= -->
+  <section class="view active" id="timerView">
+    <div class="stage">
+      <div class="modes" role="tablist" aria-label="Timer mode">
+        <button class="mode-btn active" data-mode="pomodoro">pomodoro</button>
+        <button class="mode-btn" data-mode="short">short break</button>
+        <button class="mode-btn" data-mode="long">long break</button>
+      </div>
+      <div class="time-row">
+        <button class="nudge" id="dec" aria-label="Subtract one minute">–</button>
+        <div class="clock" id="clock" aria-live="polite">00<span class="colon">:</span>25<span class="colon">:</span>00</div>
+        <button class="nudge" id="inc" aria-label="Add one minute">+</button>
+      </div>
+      <div class="session-line" id="sessionLine">focus session 1</div>
+      <div class="dots" id="dots"></div>
+      <div class="controls">
+        <button class="icon-btn spin-on-click" id="resetBtn" aria-label="Reset timer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <button class="btn-start" id="startBtn">start</button>
+        <div style="width:48px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HABITS VIEW ================= -->
+  <section class="view" id="habitsView">
+    <div class="stat-cards">
+      <div class="stat-card"><div class="num" id="statCurrent">0</div><div class="label">current streak</div></div>
+      <div class="stat-card"><div class="num" id="statBest">0</div><div class="label">best streak</div></div>
+      <div class="stat-card"><div class="num" id="statMonth">0%</div><div class="label">this month</div></div>
+      <div class="stat-card"><div class="num" id="statTotal">0</div><div class="label">total check-ins</div></div>
+    </div>
+
+    <div class="sub-tabs">
+      <button data-sub="dashSub" class="active">Dashboard</button>
+      <button data-sub="calSub">Calendar</button>
+      <button data-sub="heatSub">Heatmap</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="sub-view active" id="dashSub">
+      <div class="month-nav">
+        <button class="mn-btn" id="mPrev">←</button>
+        <div class="mn-label" id="mLabel">August 2026</div>
+        <button class="mn-btn" id="mNext">→</button>
+        <button class="today-btn" id="mToday">Today</button>
+        <button class="add-habit-btn" id="addHabitBtn">+ add goal</button>
+      </div>
+      <div class="grid-wrap"><div id="gridHost"></div></div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="sub-view" id="calSub" style="display:none;">
+      <div class="month-nav">
+        <button class="mn-btn" id="cPrev">←</button>
+        <div class="mn-label" id="cLabel">August 2026</div>
+        <button class="mn-btn" id="cNext">→</button>
+        <button class="today-btn" id="cToday">Today</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="sub-view" id="heatSub" style="display:none;">
+      <div class="heat-year-nav">
+        <button class="mn-btn" id="yPrev">←</button>
+        <div class="mn-label" id="yLabel">2026</div>
+        <button class="mn-btn" id="yNext">→</button>
+      </div>
+      <div class="heat-wrap">
+        <div class="heat-months" id="heatMonths"></div>
+        <div class="heat-grid" id="heatGrid"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="credit">handmade for slow afternoons &amp; steady habits</div>
+
+  <!-- music bar -->
+  <div id="musicBar">
+    <button class="music-toggle" id="musicToggle">♪ add music</button>
+  </div>
+
+  <!-- settings overlay -->
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h2>timer settings</h2>
+      <div class="field"><label><span>pomodoro (minutes)</span></label><input type="number" id="setPomodoro" min="1" max="180" value="25"></div>
+      <div class="field"><label><span>short break (minutes)</span></label><input type="number" id="setShort" min="1" max="90" value="5"></div>
+      <div class="field"><label><span>long break (minutes)</span></label><input type="number" id="setLong" min="1" max="120" value="15"></div>
+      <div class="field"><label><span>sessions before long break</span></label><input type="number" id="setRounds" min="1" max="12" value="4"></div>
+      <div class="check-row"><input type="checkbox" id="setAutoStart"><label for="setAutoStart" style="margin:0;">auto-start next session</label></div>
+      <div class="check-row"><input type="checkbox" id="setSound" checked><label for="setSound" style="margin:0;">chime when a session ends</label></div>
+      <div class="panel-actions"><button class="cancel" id="cancelSettings">cancel</button><button class="save" id="saveSettings">save</button></div>
+    </div>
+  </div>
+
+  <!-- add habit overlay -->
+  <div class="overlay" id="habitOverlay">
+    <div class="panel">
+      <h2>new goal</h2>
+      <div class="field"><label><span>habit name</span></label><input type="text" id="newHabitName" placeholder="e.g. read 10 pages" maxlength="40"></div>
+      <div class="panel-actions"><button class="cancel" id="cancelHabit">cancel</button><button class="save" id="saveHabit">add</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  /* ===================== THEME ===================== */
+  var themeBtn = document.getElementById('themeBtn');
+  var themeIcon = document.getElementById('themeIcon');
+  var sunPath = '<path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/><circle cx="12" cy="12" r="4.5"/>';
+  var moonPath = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t){
+    document.body.setAttribute('data-theme', t);
+    themeIcon.innerHTML = t === 'space' ? sunPath : moonPath;
+    try{ localStorage.setItem('komorebi-theme', t); }catch(e){}
+  }
+  var savedTheme = 'ghibli';
+  try{ savedTheme = localStorage.getItem('komorebi-theme') || 'ghibli'; }catch(e){}
+  applyTheme(savedTheme);
+  themeBtn.addEventListener('click', function(){
+    applyTheme(document.body.getAttribute('data-theme') === 'space' ? 'ghibli' : 'space');
+  });
+
+  /* ===================== NAV / VIEWS ===================== */
+  document.querySelectorAll('.nav-tabs button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.nav-tabs button').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+      document.getElementById(btn.dataset.view).classList.add('active');
+    });
+  });
+
+  /* ===================== STARS ===================== */
+  var starsWrap = document.getElementById('stars');
+  function buildStars(n){
+    starsWrap.innerHTML = '';
+    for(var i=0;i<n;i++){
+      var s = document.createElement('span');
+      s.style.left = (Math.random()*100)+'%';
+      s.style.top = (Math.random()*60)+'%';
+      s.style.animationDelay = (Math.random()*3.5)+'s';
+      starsWrap.appendChild(s);
+    }
+  }
+  buildStars(70);
+  starsWrap.style.opacity = .9;
+
+  /* ===================== POMODORO TIMER ===================== */
+  var defaults = { pomodoro:25, short:5, long:15, rounds:4, autoStart:false, sound:true };
+  var settings = loadJSON('komorebi-settings', defaults);
+  var tstate = { mode:'pomodoro', remaining: settings.pomodoro*60, running:false, tick:null, round:1, endTime:null };
+  var modeKey = { pomodoro:'pomodoro', short:'short', long:'long' };
+
+  var clockEl = document.getElementById('clock');
+  var startBtn = document.getElementById('startBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var decBtn = document.getElementById('dec');
+  var incBtn = document.getElementById('inc');
+  var sessionLine = document.getElementById('sessionLine');
+  var dotsWrap = document.getElementById('dots');
+  var orb = document.getElementById('orb');
+
+  function loadJSON(key, fallback){
+    try{ var raw = localStorage.getItem(key); if(raw) return Object.assign({}, fallback, JSON.parse(raw)); }catch(e){}
+    return Object.assign({}, fallback);
+  }
+  function saveJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
+
+  function totalForMode(m){ return settings[modeKey[m]]*60; }
+
+  function paintDots(){
+    dotsWrap.innerHTML = '';
+    for(var i=1;i<=settings.rounds;i++){
+      var d = document.createElement('div');
+      d.className = 'dot' + (i < tstate.round || (i===tstate.round && tstate.mode!=='pomodoro') ? ' filled' : '');
+      dotsWrap.appendChild(d);
+    }
+  }
+
+  function setMode(mode, resetRemaining){
+    tstate.mode = mode;
+    document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode === mode); });
+    if(resetRemaining !== false) tstate.remaining = totalForMode(mode);
+    sessionLine.textContent = mode === 'pomodoro' ? ('focus session ' + tstate.round) : (mode === 'short' ? 'short break' : 'long break — stretch a little');
+    paintDots();
+    renderTimer();
+  }
+
+  function fmt(n){ return String(n).padStart(2,'0'); }
+
+  function renderTimer(){
+    var total = totalForMode(tstate.mode);
+    var r = tstate.remaining;
+    var h = Math.floor(r/3600), m = Math.floor((r%3600)/60), s = r%60;
+    clockEl.innerHTML = fmt(h)+'<span class="colon">:</span>'+fmt(m)+'<span class="colon">:</span>'+fmt(s);
+    document.title = fmt(m)+':'+fmt(s)+' — komorebi';
+    var progress = total > 0 ? 1 - (r/total) : 0;
+    var angle = -180 + progress*180, rad = angle*Math.PI/180;
+    var cx=50, cy=70, rx=42, ry=56;
+    orb.style.left = (cx + rx*Math.cos(rad))+'%';
+    orb.style.top = Math.max(4, cy + ry*Math.sin(rad))+'%';
+    startBtn.textContent = tstate.running ? 'pause' : (r === total ? 'start' : 'resume');
+    startBtn.classList.toggle('running', tstate.running);
+    decBtn.disabled = tstate.running;
+    incBtn.disabled = tstate.running;
+  }
+
+  function playChime(){
+    if(!settings.sound) return;
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [523.25,659.25,783.99].forEach(function(freq,i){
+        var o=ctx.createOscillator(), g=ctx.createGain();
+        o.type='sine'; o.frequency.value=freq;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime+i*0.16);
+        g.gain.linearRampToValueAtTime(0.18, ctx.currentTime+i*0.16+0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+i*0.16+0.9);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(ctx.currentTime+i*0.16); o.stop(ctx.currentTime+i*0.16+0.95);
+      });
+    }catch(e){}
+  }
+
+  function tick(){
+    var remain = Math.max(0, Math.round((tstate.endTime - Date.now())/1000));
+    tstate.remaining = remain;
+    renderTimer();
+    if(remain <= 0){
+      stopInterval(); tstate.running = false; playChime(); advanceSession();
+    }
+  }
+  function startInterval(){ tstate.endTime = Date.now() + tstate.remaining*1000; tstate.tick = setInterval(tick, 250); }
+  function stopInterval(){ clearInterval(tstate.tick); tstate.tick = null; }
+
+  function advanceSession(){
+    if(tstate.mode === 'pomodoro'){
+      if(tstate.round >= settings.rounds){ tstate.round = 1; setMode('long'); }
+      else { tstate.round += 1; setMode('short'); }
+    } else { setMode('pomodoro'); }
+    if(settings.autoStart) toggleStart();
+  }
+  function toggleStart(){
+    tstate.running = !tstate.running;
+    if(tstate.running) startInterval();
+    else { stopInterval(); tstate.remaining = Math.max(0, Math.round((tstate.endTime - Date.now())/1000)); }
+    renderTimer();
+  }
+  startBtn.addEventListener('click', toggleStart);
+  resetBtn.addEventListener('click', function(){ tstate.running=false; stopInterval(); tstate.remaining = totalForMode(tstate.mode); renderTimer(); });
+  decBtn.addEventListener('click', function(){ if(tstate.running) return; tstate.remaining = Math.max(60, tstate.remaining-60); renderTimer(); });
+  incBtn.addEventListener('click', function(){ if(tstate.running) return; tstate.remaining = Math.min(180*60, tstate.remaining+60); renderTimer(); });
+  document.querySelectorAll('.mode-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ if(tstate.running){ stopInterval(); tstate.running=false; } setMode(btn.dataset.mode); });
+  });
+
+  var overlay = document.getElementById('overlay');
+  document.getElementById('settingsBtn').addEventListener('click', function(){
+    document.getElementById('setPomodoro').value = settings.pomodoro;
+    document.getElementById('setShort').value = settings.short;
+    document.getElementById('setLong').value = settings.long;
+    document.getElementById('setRounds').value = settings.rounds;
+    document.getElementById('setAutoStart').checked = settings.autoStart;
+    document.getElementById('setSound').checked = settings.sound;
+    overlay.classList.add('open');
+  });
+  document.getElementById('cancelSettings').addEventListener('click', function(){ overlay.classList.remove('open'); });
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.classList.remove('open'); });
+  function clamp(v,min,max,fb){ if(isNaN(v)) return fb; return Math.min(max, Math.max(min, v)); }
+  document.getElementById('saveSettings').addEventListener('click', function(){
+    settings.pomodoro = clamp(parseInt(document.getElementById('setPomodoro').value,10),1,180,defaults.pomodoro);
+    settings.short = clamp(parseInt(document.getElementById('setShort').value,10),1,90,defaults.short);
+    settings.long = clamp(parseInt(document.getElementById('setLong').value,10),1,120,defaults.long);
+    settings.rounds = clamp(parseInt(document.getElementById('setRounds').value,10),1,12,defaults.rounds);
+    settings.autoStart = document.getElementById('setAutoStart').checked;
+    settings.sound = document.getElementById('setSound').checked;
+    saveJSON('komorebi-settings', settings);
+    if(tstate.running){ stopInterval(); tstate.running=false; }
+    tstate.round = Math.min(tstate.round, settings.rounds);
+    setMode(tstate.mode);
+    overlay.classList.remove('open');
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.code==='Space' && !overlay.classList.contains('open') && !habitOverlay.classList.contains('open') && document.activeElement.tagName!=='INPUT'){
+      e.preventDefault(); toggleStart();
+    }
+    if(e.key==='Escape'){ overlay.classList.remove('open'); habitOverlay.classList.remove('open'); }
+  });
+
+  setMode('pomodoro', true);
+  renderTimer();
+
+  /* ===================== HABIT TRACKER ===================== */
+  var habits = loadArray('komorebi-habits');
+  var records = loadObj('komorebi-records'); // { "YYYY-MM-DD": { habitId: 'done'|'missed' } }
+
+  function loadArray(key){ try{ var r = localStorage.getItem(key); return r ? JSON.parse(r) : []; }catch(e){ return []; } }
+  function loadObj(key){ try{ var r = localStorage.getItem(key); return r ? JSON.parse(r) : {}; }catch(e){ return {}; } }
+  function persistHabits(){ saveJSON('komorebi-habits', habits); }
+  function persistRecords(){ saveJSON('komorebi-records', records); }
+
+  var today = new Date();
+  var dashDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  var calDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  var heatYear = today.getFullYear();
+
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function dateStr(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
+  function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+  function isToday(y,m,d){ return y===today.getFullYear() && m===today.getMonth() && d===today.getDate(); }
+  function isFuture(y,m,d){ var dt=new Date(y,m,d); var t=new Date(today.getFullYear(),today.getMonth(),today.getDate()); return dt>t; }
+
+  function statusFor(dstr, habitId){
+    var rec = records[dstr];
+    return rec ? rec[habitId] : undefined;
+  }
+  function setStatus(dstr, habitId, status){
+    if(!records[dstr]) records[dstr] = {};
+    if(status === null){ delete records[dstr][habitId]; if(Object.keys(records[dstr]).length===0) delete records[dstr]; }
+    else records[dstr][habitId] = status;
+    persistRecords();
+  }
+  function cycleStatus(cur){
+    if(cur === 'done') return 'missed';
+    if(cur === 'missed') return null;
+    return 'done';
+  }
+
+  /* -------- sub tabs -------- */
+  document.querySelectorAll('.sub-tabs button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.sub-tabs button').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      ['dashSub','calSub','heatSub'].forEach(function(id){
+        document.getElementById(id).style.display = (id===btn.dataset.sub) ? '' : 'none';
+      });
+      if(btn.dataset.sub==='calSub') renderCalendar();
+      if(btn.dataset.sub==='heatSub') renderHeatmap();
+    });
+  });
+
+  /* -------- add / remove habit -------- */
+  var habitOverlay = document.getElementById('habitOverlay');
+  document.getElementById('addHabitBtn').addEventListener('click', function(){
+    document.getElementById('newHabitName').value = '';
+    habitOverlay.classList.add('open');
+    setTimeout(function(){ document.getElementById('newHabitName').focus(); }, 60);
+  });
+  document.getElementById('cancelHabit').addEventListener('click', function(){ habitOverlay.classList.remove('open'); });
+  habitOverlay.addEventListener('click', function(e){ if(e.target===habitOverlay) habitOverlay.classList.remove('open'); });
+  document.getElementById('saveHabit').addEventListener('click', addHabitNow);
+  document.getElementById('newHabitName').addEventListener('keydown', function(e){ if(e.key==='Enter') addHabitNow(); });
+  function addHabitNow(){
+    var name = document.getElementById('newHabitName').value.trim();
+    if(!name) return;
+    habits.push({ id: 'h'+Date.now()+Math.floor(Math.random()*1000), name: name });
+    persistHabits();
+    habitOverlay.classList.remove('open');
+    renderDashboard(); renderStats();
+  }
+  function removeHabit(id){
+    if(!confirm('Remove this goal? Its check-ins stay in your history.')) return;
+    habits = habits.filter(function(h){ return h.id !== id; });
+    persistHabits();
+    renderDashboard(); renderStats();
+  }
+
+  /* -------- dashboard grid -------- */
+  var mLabel = document.getElementById('mLabel');
+  function renderDashboard(){
+    mLabel.textContent = MONTHS[dashDate.getMonth()] + ' ' + dashDate.getFullYear();
+    var host = document.getElementById('gridHost');
+    var y = dashDate.getFullYear(), m = dashDate.getMonth();
+    var dim = daysInMonth(y,m);
+
+    if(habits.length === 0){
+      host.innerHTML = '<div class="empty-state">No goals yet — tap "+ add goal" to start tracking something.</div>';
+      return;
+    }
+
+    var html = '<table class="habit-grid"><thead><tr><th style="text-align:left;padding-left:16px;">goal</th>';
+    for(var d=1; d<=dim; d++){
+      html += '<th class="'+(isToday(y,m,d)?'today-col':'')+'">'+d+'</th>';
+    }
+    html += '<th>Month</th></tr></thead><tbody>';
+
+    habits.forEach(function(h){
+      html += '<tr><td class="habit-name">'+escapeHtml(h.name)+' <span class="rm" data-id="'+h.id+'" title="remove">✕</span></td>';
+      var doneCount = 0, trackedDays = 0;
+      for(var d=1; d<=dim; d++){
+        var ds = dateStr(y,m,d);
+        var st = statusFor(ds, h.id);
+        var fut = isFuture(y,m,d);
+        if(!fut){ trackedDays++; if(st==='done') doneCount++; }
+        var cls = st==='done' ? 'done' : (st==='missed' ? 'missed' : '');
+        var label = st==='done' ? '✓' : (st==='missed' ? '✕' : '');
+        html += '<td><button class="cell-btn '+cls+'" data-date="'+ds+'" data-habit="'+h.id+'" '+(fut?'disabled':'')+'>'+label+'</button></td>';
+      }
+      var pct = trackedDays>0 ? Math.round((doneCount/dim)*100) : 0;
+      html += '<td class="month-pct">'+pct+'%</td></tr>';
+    });
+
+    html += '</tbody><tfoot><tr><td style="padding-left:16px;">Total</td>';
+    for(var d2=1; d2<=dim; d2++){
+      var ds2 = dateStr(y,m,d2);
+      var count = 0;
+      habits.forEach(function(h){ if(statusFor(ds2,h.id)==='done') count++; });
+      html += '<td>'+count+'/'+habits.length+'</td>';
+    }
+    html += '<td></td></tr></tfoot></table>';
+    host.innerHTML = html;
+
+    host.querySelectorAll('.cell-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ds = btn.dataset.date, hid = btn.dataset.habit;
+        var cur = statusFor(ds, hid);
+        setStatus(ds, hid, cycleStatus(cur));
+        renderDashboard(); renderStats();
+      });
+    });
+    host.querySelectorAll('.rm').forEach(function(el){
+      el.addEventListener('click', function(e){ e.stopPropagation(); removeHabit(el.dataset.id); });
+    });
+  }
+  function escapeHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  document.getElementById('mPrev').addEventListener('click', function(){ dashDate.setMonth(dashDate.getMonth()-1); renderDashboard(); });
+  document.getElementById('mNext').addEventListener('click', function(){ dashDate.setMonth(dashDate.getMonth()+1); renderDashboard(); });
+  document.getElementById('mToday').addEventListener('click', function(){ dashDate = new Date(today.getFullYear(), today.getMonth(), 1); renderDashboard(); });
+
+  /* -------- calendar -------- */
+  var cLabel = document.getElementById('cLabel');
+  function renderCalendar(){
+    cLabel.textContent = MONTHS[calDate.getMonth()] + ' ' + calDate.getFullYear();
+    var grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    DOW.forEach(function(d){ var el=document.createElement('div'); el.className='cal-dow'; el.textContent=d; grid.appendChild(el); });
+    var y=calDate.getFullYear(), m=calDate.getMonth();
+    var firstDow = new Date(y,m,1).getDay();
+    var dim = daysInMonth(y,m);
+    for(var i=0;i<firstDow;i++){ var e=document.createElement('div'); e.className='cal-cell empty'; grid.appendChild(e); }
+    for(var d=1; d<=dim; d++){
+      var ds = dateStr(y,m,d);
+      var doneCount=0;
+      habits.forEach(function(h){ if(statusFor(ds,h.id)==='done') doneCount++; });
+      var frac = habits.length>0 ? doneCount/habits.length : 0;
+      var cell = document.createElement('div');
+      cell.className = 'cal-cell' + (isToday(y,m,d)?' today':'');
+      var alpha = habits.length>0 ? Math.min(0.9, 0.12 + frac*0.75) : 0.05;
+      cell.style.background = 'rgba(242,200,121,'+alpha+')';
+      cell.innerHTML = '<div class="d">'+d+'</div>' + (habits.length>0 ? '<div class="f">'+doneCount+'/'+habits.length+'</div>' : '');
+      cell.addEventListener('click', function(){
+        document.querySelector('.nav-tabs button[data-view="habitsView"]').click();
+        document.querySelector('.sub-tabs button[data-sub="dashSub"]').click();
+      });
+      grid.appendChild(cell);
+    }
+  }
+  document.getElementById('cPrev').addEventListener('click', function(){ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
+  document.getElementById('cNext').addEventListener('click', function(){ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
+  document.getElementById('cToday').addEventListener('click', function(){ calDate = new Date(today.getFullYear(), today.getMonth(), 1); renderCalendar(); });
+
+  /* -------- heatmap -------- */
+  var yLabel = document.getElementById('yLabel');
+  function renderHeatmap(){
+    yLabel.textContent = heatYear;
+    var grid = document.getElementById('heatGrid');
+    var monthsRow = document.getElementById('heatMonths');
+    grid.innerHTML = ''; monthsRow.innerHTML = '';
+
+    var start = new Date(heatYear, 0, 1);
+    var startDow = start.getDay();
+    var gridStart = new Date(start); gridStart.setDate(gridStart.getDate() - startDow);
+    var end = new Date(heatYear, 11, 31);
+    var totalDays = Math.ceil((end - gridStart) / 86400000) + 1;
+    var weeks = Math.ceil(totalDays / 7);
+
+    grid.style.gridTemplateColumns = 'repeat('+weeks+', 12px)';
+    monthsRow.style.gridTemplateColumns = 'repeat('+weeks+', 12px)';
+
+    var lastMonth = -1;
+    for(var w=0; w<weeks; w++){
+      var weekStart = new Date(gridStart); weekStart.setDate(weekStart.getDate() + w*7);
+      var label = '';
+      if(weekStart.getFullYear()===heatYear && weekStart.getMonth() !== lastMonth && weekStart.getDate() <= 7){
+        label = MONTHS_SHORT[weekStart.getMonth()];
+        lastMonth = weekStart.getMonth();
+      }
+      var lbl = document.createElement('div');
+      lbl.textContent = label;
+      monthsRow.appendChild(lbl);
+    }
+
+    for(var d=0; d<weeks*7; d++){
+      var cur = new Date(gridStart); cur.setDate(cur.getDate() + d);
+      var cell = document.createElement('div');
+      if(cur.getFullYear() !== heatYear){
+        cell.className = 'heat-cell'; cell.style.opacity = '0.15';
+      } else {
+        var ds = dateStr(cur.getFullYear(), cur.getMonth(), cur.getDate());
+        var doneCount = 0;
+        habits.forEach(function(h){ if(statusFor(ds,h.id)==='done') doneCount++; });
+        var frac = habits.length>0 ? doneCount/habits.length : 0;
+        cell.className = 'heat-cell';
+        cell.title = ds + ' — ' + doneCount + '/' + habits.length;
+        if(frac > 0){
+          var alpha = 0.2 + frac*0.8;
+          cell.style.background = 'rgba(242,200,121,'+alpha+')';
+        }
+      }
+      grid.appendChild(cell);
+    }
+  }
+  document.getElementById('yPrev').addEventListener('click', function(){ heatYear--; renderHeatmap(); });
+  document.getElementById('yNext').addEventListener('click', function(){ heatYear++; renderHeatmap(); });
+
+  /* -------- stats -------- */
+  function allSuccessfulDaysSorted(){
+    if(habits.length===0) return [];
+    var days = Object.keys(records).filter(function(ds){
+      return habits.every(function(h){ return records[ds] && records[ds][h.id] === 'done'; });
+    });
+    days.sort();
+    return days;
+  }
+  function toDate(ds){ var p=ds.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function diffDays(a,b){ return Math.round((toDate(b)-toDate(a))/86400000); }
+
+  function computeStreaks(){
+    var days = allSuccessfulDaysSorted();
+    var best = 0, run = 0, prev = null;
+    days.forEach(function(ds){
+      if(prev !== null && diffDays(prev, ds) === 1) run += 1; else run = 1;
+      if(run > best) best = run;
+      prev = ds;
+    });
+    // current streak: consecutive successful days ending today or yesterday
+    var current = 0;
+    if(days.length){
+      var last = days[days.length-1];
+      var todayStr = dateStr(today.getFullYear(), today.getMonth(), today.getDate());
+      var gap = diffDays(last, todayStr);
+      if(gap <= 1){
+        current = 1;
+        for(var i=days.length-1; i>0; i--){
+          if(diffDays(days[i-1], days[i]) === 1) current++; else break;
+        }
+      }
+    }
+    return { current: current, best: best };
+  }
+
+  function renderStats(){
+    var s = computeStreaks();
+    document.getElementById('statCurrent').textContent = s.current;
+    document.getElementById('statBest').textContent = s.best;
+
+    var y = today.getFullYear(), m = today.getMonth(), dim = daysInMonth(y,m);
+    var possible = habits.length * dim;
+    var done = 0;
+    for(var d=1; d<=dim; d++){
+      var ds = dateStr(y,m,d);
+      habits.forEach(function(h){ if(statusFor(ds,h.id)==='done') done++; });
+    }
+    document.getElementById('statMonth').textContent = possible>0 ? Math.round((done/possible)*100)+'%' : '0%';
+
+    var totalDone = 0;
+    Object.keys(records).forEach(function(ds){
+      Object.keys(records[ds]).forEach(function(hid){ if(records[ds][hid]==='done') totalDone++; });
+    });
+    document.getElementById('statTotal').textContent = totalDone;
+  }
+
+  renderDashboard();
+  renderStats();
+
+  /* ===================== MUSIC EMBED ===================== */
+  var musicBar = document.getElementById('musicBar');
+  var savedMusic = null;
+  try{ savedMusic = localStorage.getItem('komorebi-music'); }catch(e){}
+
+  function buildEmbed(url){
+    url = url.trim();
+    var yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/);
+    if(yt){
+      return '<iframe width="280" height="158" src="https://www.youtube.com/embed/'+yt[1]+'?autoplay=0" title="YouTube player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    }
+    var sp = url.match(/open\.spotify\.com\/(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/);
+    if(sp){
+      var h = (sp[1]==='track') ? 152 : 352;
+      return '<iframe style="border-radius:12px" src="https://open.spotify.com/embed/'+sp[1]+'/'+sp[2]+'?utm_source=generator" width="280" height="'+h+'" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>';
+    }
+    return null;
+  }
+
+  function showMusicForm(){
+    musicBar.innerHTML =
+      '<button class="music-close" id="musicX">✕</button>' +
+      '<div class="music-form"><input type="text" id="musicInput" placeholder="paste a YouTube or Spotify link"><button id="musicGo">Add</button></div>';
+    document.getElementById('musicX').addEventListener('click', collapseMusic);
+    document.getElementById('musicGo').addEventListener('click', function(){
+      var val = document.getElementById('musicInput').value;
+      var embed = buildEmbed(val);
+      if(!embed){ alert('Paste a valid YouTube or Spotify link.'); return; }
+      try{ localStorage.setItem('komorebi-music', val); }catch(e){}
+      showMusicEmbed(embed);
+    });
+    document.getElementById('musicInput').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('musicGo').click(); });
+  }
+  function showMusicEmbed(embedHtml){
+    musicBar.className = '';
+    musicBar.innerHTML = '<button class="music-close" id="musicX">✕</button><div class="music-embed">'+embedHtml+'</div>';
+    document.getElementById('musicX').addEventListener('click', function(){
+      try{ localStorage.removeItem('komorebi-music'); }catch(e){}
+      collapseMusic();
+    });
+  }
+  function collapseMusic(){
+    musicBar.className = 'collapsed';
+    musicBar.innerHTML = '<button class="music-toggle" id="musicToggle">♪ add music</button>';
+    document.getElementById('musicToggle').addEventListener('click', showMusicForm);
+  }
+
+  if(savedMusic){
+    var em = buildEmbed(savedMusic);
+    if(em) showMusicEmbed(em); else collapseMusic();
+  } else {
+    document.getElementById('musicToggle').addEventListener('click', showMusicForm);
+  }
+
+})();
+</script>
+</body>
+</html>
